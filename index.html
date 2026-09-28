@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="da"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Spilhylde</title>
+<link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon-180.png">
+<meta name="theme-color" content="#14213d"><meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Spilhylde">
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+html,body{margin:0;height:100%;background:#14213d;overflow:hidden;font-family:system-ui,-apple-system,sans-serif;color:#fff;touch-action:none}
+[hidden]{display:none!important}
+#menu{height:100%;padding:calc(env(safe-area-inset-top) + 40px) 22px 30px;max-width:480px;margin:auto}
+h1{font-size:40px;margin:0 0 6px;font-weight:800;letter-spacing:-1px}
+#menu p{margin:0 0 28px;color:#9fb0d0;font-size:14px}
+.g{display:block;width:100%;text-align:left;background:#1f2f57;border:0;border-left:8px solid var(--c);border-radius:18px;padding:18px 20px;margin-bottom:14px;color:#fff;font:inherit}
+.g b{display:block;font-size:22px}.g span{font-size:13px;color:#9fb0d0}.g em{float:right;font-style:normal;font-weight:800;font-size:22px;color:var(--c)}
+#wrap{height:100%;display:flex;align-items:center;justify-content:center;background:#000}
+canvas{display:block;touch-action:none}
+#back{position:fixed;left:10px;top:calc(env(safe-area-inset-top) + 10px);background:rgba(0,0,0,.45);color:#fff;border:0;border-radius:20px;padding:8px 14px;font:700 15px system-ui}
+#menu{overflow-y:auto;touch-action:pan-y}
+#nm{width:100%;background:#1f2f57;border:0;border-radius:14px;padding:14px 16px;color:#fff;font:700 16px system-ui;margin-bottom:20px;user-select:text;-webkit-user-select:text}
+#tabs{display:flex;gap:8px;margin:26px 0 12px}#tabs button{flex:1;border:0;border-radius:12px;padding:10px;background:#1f2f57;color:#9fb0d0;font:700 14px system-ui}#tabs button.on{background:var(--c);color:#14213d}
+#lb{list-style:none;padding:0;margin:0 0 30px}#lb li{display:flex;gap:12px;padding:10px 4px;border-bottom:1px solid #26365f;font-size:16px}#lb li b{width:26px;color:#9fb0d0}#lb li span{flex:1}#lb li.me{color:#ffd23f;font-weight:800}
+</style></head><body>
+<div id="menu"><h1>Spilhylde</h1><p>Spil, sæt rekord og slå dine venner.</p><input id="nm" maxlength="16" placeholder="Dit navn" autocomplete="off"><div id="list"></div><div id="tabs"></div><ol id="lb"></ol></div>
+<div id="wrap" hidden><canvas id="c"></canvas><button id="back">‹ Menu</button></div>
+<script>
+const W=360,H=640,cv=document.getElementById('c'),cx=cv.getContext('2d');
+cv.width=W*2;cv.height=H*2;cx.scale(2,2);
+const fit=()=>{const s=Math.min(innerWidth/W,innerHeight/H);cv.style.width=W*s+'px';cv.style.height=H*s+'px'};
+addEventListener('resize',fit);fit();
+const store={get(k){try{return+localStorage.getItem(k)||0}catch(e){return 0}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+const SB_URL='zccmumyvtwhyuvzqmxhk',SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpjY211bXl2dHdoeXV2enFteGhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA2Mjg5NzAsImV4cCI6MjEwNjIwNDk3MH0.Kxnf5QnKYEa7-0n7jdLU0JcaVEJTJyEq2-CtSc6X3Z8';/* udfyld fra Supabase: Project URL og anon public key */
+const hd={apikey:SB_KEY,Authorization:'Bearer '+SB_KEY,'Content-Type':'application/json'};
+const esc=s=>s.replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';');
+const nm=document.getElementById('nm');try{nm.value=localStorage.getItem('name')||''}catch(e){}
+nm.oninput=()=>{try{localStorage.setItem('name',nm.value.trim().slice(0,16))}catch(e){}};
+const myName=()=>nm.value.trim().slice(0,16)||'Anonym';
+function submit(game,v){if(SB_URL)fetch(SB_URL+'/rest/v1/scores',{method:'POST',headers:hd,body:JSON.stringify({game,name:myName(),score:v})}).catch(()=>{})}
+let tab='flappy';
+async function board(){const ul=document.getElementById('lb');
+ if(!SB_URL){ul.innerHTML='<li>Ranglisten er ikke sat op endnu.</li>';return}
+ ul.innerHTML='<li>Henter…</li>';
+ try{const r=await fetch(SB_URL+'/rest/v1/scores?game=eq.'+tab+'&select=name,score&order=score.desc&limit=200',{headers:hd});
+  const seen=new Set(),rows=[];for(const x of await r.json()){const k=x.name.toLowerCase();if(!seen.has(k)){seen.add(k);rows.push(x)}}
+  ul.innerHTML=rows.slice(0,10).map((x,i)=>`<li class="${x.name===myName()?'me':''}"><b>${i+1}</b><span>${esc(x.name)}</span>${x.score}</li>`).join('')||'<li>Ingen point endnu. Bliv den første!</li>'
+ }catch(e){ul.innerHTML='<li>Kunne ikke hente ranglisten.</li>'}}
+const rnd=n=>Math.floor(Math.random()*n);
+let cur=null,last=0,state='ready',score=0,best=0,newBest=false,overAt=0,ox=0,oy=0;
+
+function die(){if(state!=='play')return;state='over';overAt=performance.now();
+ if(score>best){best=score;newBest=true;store.set('hs_'+cur.id,best);submit(cur.id,score)}
+ navigator.vibrate&&navigator.vibrate(60)}
+function reset(){cur.reset();state='ready';score=0;newBest=false}
+
+/* ---------- FLAPPY ---------- */
+const flappy={id:'flappy',tapStarts:1,
+reset(){this.y=280;this.v=0;this.p=[];this.t=1.2},
+down(){this.v=-400},
+update(dt){this.v+=1300*dt;this.y+=this.v*dt;this.t+=dt;
+ if(this.t>1.5){this.t=0;this.p.push({x:W+30,gy:150+Math.random()*270,ok:0})}
+ for(const q of this.p){q.x-=150*dt;if(!q.ok&&q.x+26<90){q.ok=1;score++}
+  if(103>q.x-26&&77<q.x+26&&(this.y-13<q.gy-85||this.y+13>q.gy+85))die()}
+ this.p=this.p.filter(q=>q.x>-40);
+ if(this.y>H-73||this.y<-20)die()},
+draw(){const g=cx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#4ec0ca');g.addColorStop(1,'#c4ecf0');cx.fillStyle=g;cx.fillRect(0,0,W,H);
+ cx.lineWidth=3;cx.strokeStyle='#1b5e20';cx.fillStyle='#43a047';
+ for(const q of this.p){for(const r of[[q.x-26,-5,52,q.gy-80],[q.x-26,q.gy+85,52,H]]){cx.fillRect(...r);cx.strokeRect(...r)}}
+ cx.fillStyle='#d9b26f';cx.fillRect(0,H-60,W,60);cx.fillStyle='#8bc34a';cx.fillRect(0,H-60,W,8);
+ const by=state==='ready'?280+Math.sin(performance.now()/200)*8:this.y;
+ cx.save();cx.translate(90,by);cx.rotate(Math.max(-.4,Math.min(1.2,this.v/500)));
+ cx.fillStyle='#ffd23f';cx.beginPath();cx.arc(0,0,13,0,7);cx.fill();
+ cx.fillStyle='#fff';cx.beginPath();cx.arc(5,-4,4,0,7);cx.fill();
+ cx.fillStyle='#111';cx.beginPath();cx.arc(6,-4,1.8,0,7);cx.fill();
+ cx.fillStyle='#ff7043';cx.fillRect(9,2,9,5);cx.restore()}};
+
+/* ---------- SNAKE ---------- */
+const C=18,R=32,S=20;
+const snake={id:'snake',
+reset(){this.s=[{x:5,y:16},{x:4,y:16},{x:3,y:16}];this.d=this.nd={x:1,y:0};this.t=0;this.f=this.food()},
+food(){let f;do{f={x:rnd(C),y:rnd(R)}}while(this.s.some(a=>a.x==f.x&&a.y==f.y));return f},
+swipe(dx,dy){const d=Math.abs(dx)>Math.abs(dy)?{x:Math.sign(dx),y:0}:{x:0,y:Math.sign(dy)};
+ if(!(d.x===-this.d.x&&d.y===-this.d.y))this.nd=d},
+update(dt){this.t+=dt;while(this.t>.11&&state==='play'){this.t-=.11;this.d=this.nd;
+ const h={x:this.s[0].x+this.d.x,y:this.s[0].y+this.d.y};
+ if(h.x<0||h.y<0||h.x>=C||h.y>=R||this.s.some(a=>a.x==h.x&&a.y==h.y)){die();return}
+ this.s.unshift(h);if(h.x==this.f.x&&h.y==this.f.y){score++;this.f=this.food()}else this.s.pop()}},
+draw(){cx.fillStyle='#10222b';cx.fillRect(0,0,W,H);
+ cx.fillStyle='#ff5d8f';cx.beginPath();cx.arc(this.f.x*S+10,this.f.y*S+10,7,0,7);cx.fill();
+ this.s.forEach((a,i)=>{cx.fillStyle=i?'#2ec4b6':'#9af5e9';cx.beginPath();cx.roundRect(a.x*S+1,a.y*S+1,S-2,S-2,6);cx.fill()})}};
+
+/* ---------- STACK ---------- */
+const stack={id:'stack',
+reset(){this.b=[{x:100,w:160}];this.w=160;this.x=0;this.dir=1},
+down(){const t=this.b[this.b.length-1];let l=Math.max(this.x,t.x),ov=Math.min(this.x+this.w,t.x+t.w)-l;
+ if(ov<=1){die();return}
+ if(Math.abs(this.x-t.x)<5){l=t.x;ov=Math.min(this.w,t.w)}
+ this.b.push({x:l,w:ov});this.w=ov;score++;this.dir=score%2?-1:1;this.x=this.dir>0?0:W-ov},
+update(dt){this.x+=this.dir*(140+Math.min(score*6,160))*dt;
+ if(this.x<0){this.x=0;this.dir=1}if(this.x+this.w>W){this.x=W-this.w;this.dir=-1}},
+draw(){cx.fillStyle='#1d1b3a';cx.fillRect(0,0,W,H);const n=this.b.length,h=28,ty=400;
+ this.b.forEach((b,i)=>{cx.fillStyle='hsl('+(i*23%360)+',70%,58%)';cx.fillRect(b.x,ty+(n-1-i)*h,b.w,h-2)});
+ if(state!=='over'){cx.fillStyle='hsl('+(n*23%360)+',70%,58%)';cx.fillRect(this.x,ty-h,this.w,h-2)}}};
+
+/* ---------- FÆLLES ---------- */
+const games=[
+ {g:flappy,name:'Flappy',how:'Tryk for at flappe',c:'#ffd23f'},
+ {g:snake,name:'Snake',how:'Swipe for at styre',c:'#2ec4b6'},
+ {g:stack,name:'Stack',how:'Tryk for at placere blokken',c:'#ff5d8f'}];
+const menu=document.getElementById('menu'),wrap=document.getElementById('wrap'),list=document.getElementById('list');
+function showMenu(){cur=null;wrap.hidden=true;menu.hidden=false;
+ list.innerHTML=games.map((o,i)=>`<button class="g" style="--c:${o.c}" data-i="${i}"><em>${store.get('hs_'+o.g.id)}</em><b>${o.name}</b><span>${o.how}</span></button>`).join('');
+ const tb=document.getElementById('tabs');
+ tb.innerHTML=games.map(o=>`<button data-id="${o.g.id}" class="${o.g.id===tab?'on':''}" style="--c:${o.c}">${o.name}</button>`).join('');
+ tb.onclick=e=>{const b=e.target.closest('button');if(b){tab=b.dataset.id;showMenu()}};board()}
+list.onclick=e=>{const b=e.target.closest('.g');if(!b)return;cur=games[b.dataset.i].g;best=store.get('hs_'+cur.id);
+ menu.hidden=true;wrap.hidden=false;fit();reset();last=performance.now()};
+document.getElementById('back').onclick=showMenu;
+
+function txt(s,x,y,sz){cx.font='800 '+sz+'px system-ui,sans-serif';cx.lineJoin='round';cx.lineWidth=sz/5;
+ cx.strokeStyle='rgba(0,0,0,.55)';cx.strokeText(s,x,y);cx.fillStyle='#fff';cx.fillText(s,x,y)}
+function hud(){cx.textAlign='center';txt(score,W/2,90,56);
+ if(state==='ready'){txt('Tryk for at starte',W/2,H/2+130,22);txt('Rekord: '+best,W/2,H/2+165,18)}
+ if(state==='over'){cx.fillStyle='rgba(10,15,30,.65)';cx.beginPath();cx.roundRect(40,200,280,220,20);cx.fill();
+  txt('Game over',W/2,262,34);txt('Point: '+score,W/2,312,24);
+  txt((newBest?'Ny rekord! ':'Rekord: ')+best,W/2,348,24);txt('Tryk for at prøve igen',W/2,396,17)}}
+function loop(t){requestAnimationFrame(loop);if(!cur)return;
+ const dt=Math.min((t-last)/1000,.05);last=t;
+ if(state==='play')cur.update(dt);cur.draw();hud()}
+
+cv.addEventListener('pointerdown',e=>{ox=e.clientX;oy=e.clientY;if(!cur)return;
+ if(state==='ready'){state='play';if(cur.tapStarts)cur.down()}
+ else if(state==='play'){cur.down&&cur.down()}
+ else if(performance.now()-overAt>500)reset()});
+cv.addEventListener('pointermove',e=>{if(state!=='play'||!cur||!cur.swipe)return;
+ const dx=e.clientX-ox,dy=e.clientY-oy;if(Math.hypot(dx,dy)>24){cur.swipe(dx,dy);ox=e.clientX;oy=e.clientY}});
+document.addEventListener('gesturestart',e=>e.preventDefault());
+addEventListener('keydown',e=>{if(!cur)return;
+ const k={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[e.key];
+ if(k&&cur.swipe&&state==='play')cur.swipe(k[0],k[1]);
+ if(e.key===' ')cv.dispatchEvent(new PointerEvent('pointerdown'))});
+showMenu();requestAnimationFrame(loop);
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script></body></html>
