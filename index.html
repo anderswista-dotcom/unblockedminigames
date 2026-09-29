@@ -31,7 +31,8 @@ const fit=()=>{const s=Math.min(innerWidth/W,innerHeight/H);cv.style.width=W*s+'
 addEventListener('resize',fit);fit();
 const store={get(k){try{return+localStorage.getItem(k)||0}catch(e){return 0}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
 const SB_URL='zccmumyvtwhyuvzqmxhk',SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpjY211bXl2dHdoeXV2enFteGhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA2Mjg5NzAsImV4cCI6MjEwNjIwNDk3MH0.Kxnf5QnKYEa7-0n7jdLU0JcaVEJTJyEq2-CtSc6X3Z8';/* udfyld fra Supabase: Project URL og anon public key */
-const SBU=SB_URL.trim().replace(/\/(rest\/v1)?\/?$/,''),KEY=SB_KEY.trim();
+let SBU=SB_URL.trim().replace(/\/(rest\/v1)?\/?$/,'');const KEY=SB_KEY.trim();
+if(SBU&&!/^https?:\/\//.test(SBU))SBU='https://'+(SBU.includes('.')?SBU:SBU+'.supabase.co');
 const hd={apikey:KEY,'Content-Type':'application/json'};if(KEY.startsWith('eyJ'))hd.Authorization='Bearer '+KEY;
 let subErr='';
 const esc=s=>s.replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';');
