@@ -30,21 +30,28 @@ cv.width=W*2;cv.height=H*2;cx.scale(2,2);
 const fit=()=>{const s=Math.min(innerWidth/W,innerHeight/H);cv.style.width=W*s+'px';cv.style.height=H*s+'px'};
 addEventListener('resize',fit);fit();
 const store={get(k){try{return+localStorage.getItem(k)||0}catch(e){return 0}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
-const SB_URL='zccmumyvtwhyuvzqmxhk',SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpjY211bXl2dHdoeXV2enFteGhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA2Mjg5NzAsImV4cCI6MjEwNjIwNDk3MH0.Kxnf5QnKYEa7-0n7jdLU0JcaVEJTJyEq2-CtSc6X3Z8';/* udfyld fra Supabase: Project URL og anon public key */
-const hd={apikey:SB_KEY,Authorization:'Bearer '+SB_KEY,'Content-Type':'application/json'};
+const SB_URL='',SB_KEY='';/* udfyld fra Supabase: Project URL og anon public key */
+const SBU=SB_URL.trim().replace(/\/(rest\/v1)?\/?$/,''),KEY=SB_KEY.trim();
+const hd={apikey:KEY,'Content-Type':'application/json'};if(KEY.startsWith('eyJ'))hd.Authorization='Bearer '+KEY;
+let subErr='';
 const esc=s=>s.replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';');
 const nm=document.getElementById('nm');try{nm.value=localStorage.getItem('name')||''}catch(e){}
 nm.oninput=()=>{try{localStorage.setItem('name',nm.value.trim().slice(0,16))}catch(e){}};
 const myName=()=>nm.value.trim().slice(0,16)||'Anonym';
-function submit(game,v){if(SB_URL)fetch(SB_URL+'/rest/v1/scores',{method:'POST',headers:hd,body:JSON.stringify({game,name:myName(),score:v})}).catch(()=>{})}
+async function submit(game,v){if(!SBU)return;
+ try{const r=await fetch(SBU+'/rest/v1/scores',{method:'POST',headers:hd,body:JSON.stringify({game,name:myName(),score:v})});
+  if(!r.ok)throw new Error(r.status+' '+(await r.text()).slice(0,120));
+  subErr='';store.set('sy_'+game,Math.max(v,store.get('sy_'+game)))}catch(e){subErr=String(e.message||e)}}
+async function sync(){for(const o of games){const b=store.get('hs_'+o.g.id);if(b>store.get('sy_'+o.g.id))await submit(o.g.id,b)}}
 let tab='flappy';
 async function board(){const ul=document.getElementById('lb');
- if(!SB_URL){ul.innerHTML='<li>Ranglisten er ikke sat op endnu.</li>';return}
+ if(!SBU){ul.innerHTML='<li>Ranglisten er ikke sat op endnu.</li>';return}
  ul.innerHTML='<li>Henter…</li>';
- try{const r=await fetch(SB_URL+'/rest/v1/scores?game=eq.'+tab+'&select=name,score&order=score.desc&limit=200',{headers:hd});
+ try{await sync();const r=await fetch(SBU+'/rest/v1/scores?game=eq.'+tab+'&select=name,score&order=score.desc&limit=200',{headers:hd});
+  if(!r.ok)throw new Error(r.status+' '+(await r.text()).slice(0,120));
   const seen=new Set(),rows=[];for(const x of await r.json()){const k=x.name.toLowerCase();if(!seen.has(k)){seen.add(k);rows.push(x)}}
-  ul.innerHTML=rows.slice(0,10).map((x,i)=>`<li class="${x.name===myName()?'me':''}"><b>${i+1}</b><span>${esc(x.name)}</span>${x.score}</li>`).join('')||'<li>Ingen point endnu. Bliv den første!</li>'
- }catch(e){ul.innerHTML='<li>Kunne ikke hente ranglisten.</li>'}}
+  ul.innerHTML=(subErr?'<li>Kunne ikke gemme dine point: '+esc(subErr)+'</li>':'')+rows.slice(0,10).map((x,i)=>`<li class="${x.name===myName()?'me':''}"><b>${i+1}</b><span>${esc(x.name)}</span>${x.score}</li>`).join('')||'<li>Ingen point endnu. Bliv den første!</li>'
+ }catch(e){ul.innerHTML='<li>Fejl: '+esc(String(e.message||e))+'</li>'}}
 const rnd=n=>Math.floor(Math.random()*n);
 let cur=null,last=0,state='ready',score=0,best=0,newBest=false,overAt=0,ox=0,oy=0;
 
