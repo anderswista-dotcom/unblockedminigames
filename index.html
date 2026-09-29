@@ -22,7 +22,7 @@ canvas{display:block;touch-action:none}
 #tabs{display:flex;gap:8px;margin:26px 0 12px;overflow-x:auto;touch-action:pan-x}#tabs button{flex:0 0 auto;border:0;border-radius:12px;padding:10px 16px;background:#1f2f57;color:#9fb0d0;font:700 14px system-ui}#tabs button.on{background:var(--c);color:#14213d}
 #lb{list-style:none;padding:0;margin:0 0 30px}#lb li{display:flex;gap:12px;padding:10px 4px;border-bottom:1px solid #26365f;font-size:16px}#lb li b{width:26px;color:#9fb0d0}#lb li span{flex:1}#lb li.me{color:#ffd23f;font-weight:800}
 </style></head><body>
-<div id="menu"><h1>Spilhylde</h1><p>Spil, sæt rekord og slå dine venner.</p><input id="nm" maxlength="16" placeholder="Dit navn" autocomplete="off"><div id="list"></div><div id="tabs"></div><ol id="lb"></ol></div>
+<div id="menu"><h1>Spilhylde</h1><p>FÅ EN SCORE PÅ 100 OG VIND 1 COOKIE.</p><input id="nm" maxlength="16" placeholder="Dit navn" autocomplete="off"><div id="list"></div><div id="tabs"></div><ol id="lb"></ol></div>
 <div id="wrap" hidden><canvas id="c"></canvas><button id="back">‹ Menu</button></div>
 <script>
 const W=360,H=640,cv=document.getElementById('c'),cx=cv.getContext('2d');
